@@ -16,7 +16,17 @@ ToastManager.shared.info("Switched workspace")
 ToastManager.shared.error("Something went wrong")
 ```
 
-Observe it from a SwiftUI view to render your own toast pill:
+## Styling
+
+No view ships with this package, on purpose: color, glyph weight, background material,
+and animation are all specific to a host app's own design system, and hardcoding any of
+that here would mean either a generic look that fits nobody, or an API surface that grows
+a parameter for every app's preference. `ToastStyle` itself carries no color at all, only
+`systemImageName` (`nil` for `.loading`, since that style shows a spinner instead of a
+fixed glyph).
+
+Build a small, self-contained view that observes `ToastManager.shared` and supplies your
+own color mapping:
 
 ```swift
 struct ToastView: View {
@@ -24,19 +34,43 @@ struct ToastView: View {
 
     var body: some View {
         if let toast = toastManager.current {
-            HStack {
-                if let systemImageName = toast.style.systemImageName {
-                    Image(systemName: systemImageName)
-                } else {
-                    ProgressView()  // `.loading` has no fixed glyph
+            HStack(spacing: 8) {
+                Group {
+                    if let systemImageName = toast.style.systemImageName {
+                        Image(systemName: systemImageName)
+                    } else {
+                        ProgressView().progressViewStyle(.circular).scaleEffect(0.6)
+                    }
                 }
+                .foregroundStyle(Self.tint(for: toast.style))
+
                 Text(toast.message)
             }
-            .opacity(toastManager.isPresented ? 1 : 0)  // animate on this
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(.regularMaterial, in: Capsule())
+            // Drive your entrance/exit animation off `toastManager.isPresented`, not
+            // `current` directly: it flips to `false` ~0.3s before `current` clears,
+            // which is the window an exit animation plays in.
+            .opacity(toastManager.isPresented ? 1 : 0)
+        }
+    }
+
+    private static func tint(for style: ToastStyle) -> Color {
+        switch style {
+        case .success: return .green
+        case .info: return .accentColor
+        case .error: return .red
+        case .loading: return .secondary
         }
     }
 }
 ```
+
+Host this view once, pinned to the top of whatever window/panel should show toasts (a
+floating overlay window works well on macOS, so a toast can appear regardless of which
+window currently has focus). It renders nothing on its own when `current` is `nil`, so
+placement is cheap.
 
 ## Loading flow
 
