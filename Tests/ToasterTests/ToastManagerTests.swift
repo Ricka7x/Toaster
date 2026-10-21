@@ -17,10 +17,21 @@ final class ToastManagerTests: XCTestCase {
     }
 
     override func tearDown() {
+        // `removePersistentDomain` only empties the suite; the (now-empty) file is still
+        // left behind, so it has to be deleted explicitly too. Without both, every test
+        // run leaves a new file behind in ~/Library/Preferences.
         UserDefaults().removePersistentDomain(forName: suiteName)
+        Self.deleteSuitePlist(named: suiteName)
         defaults = nil
         suiteName = nil
         super.tearDown()
+    }
+
+    private static func deleteSuitePlist(named suiteName: String) {
+        guard let library = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first
+        else { return }
+        let plistURL = library.appendingPathComponent("Preferences/\(suiteName).plist")
+        try? FileManager.default.removeItem(at: plistURL)
     }
 
     // MARK: - isEnabled
