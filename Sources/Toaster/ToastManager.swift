@@ -60,11 +60,13 @@ public final class ToastManager: ObservableObject {
 
     // MARK: - Simple show/dismiss
 
-    public func show(_ message: String, style: ToastStyle = .info, duration: TimeInterval = 2.5) {
+    public func show(
+        _ message: String, style: ToastStyle = .info, duration: TimeInterval = 2.5, isWarning: Bool = false
+    ) {
         guard isEnabled else { return }
         cancelPendingLoadingWork()
         dismissTask?.cancel()
-        let toast = ToastData(message: message, style: style, duration: duration)
+        let toast = ToastData(message: message, style: style, duration: duration, isWarning: isWarning)
         current = toast
         isPresented = true
         guard duration > 0 else { return }
@@ -135,8 +137,11 @@ public final class ToastManager: ObservableObject {
     /// Completes a loading operation with a success toast. If the loading toast hasn't
     /// appeared yet (debounce still pending), skips it and shows the result directly;
     /// otherwise waits out the minimum display time before transitioning.
-    public func completeLoading(message: String, duration: TimeInterval = 3.0) {
-        transitionFromLoading(to: .success, message: message, duration: duration)
+    ///
+    /// Pass `isWarning: true` when the operation finished but only partly well. The toast is
+    /// still `.success` (see `ToastData.isWarning`); the host draws it as a warning.
+    public func completeLoading(message: String, duration: TimeInterval = 3.0, isWarning: Bool = false) {
+        transitionFromLoading(to: .success, message: message, duration: duration, isWarning: isWarning)
     }
 
     /// Completes a loading operation with an error toast. Same debounce-skip logic as
@@ -159,11 +164,13 @@ public final class ToastManager: ObservableObject {
         isPresented = false
     }
 
-    private func transitionFromLoading(to style: ToastStyle, message: String, duration: TimeInterval) {
+    private func transitionFromLoading(
+        to style: ToastStyle, message: String, duration: TimeInterval, isWarning: Bool = false
+    ) {
         if let work = loadingDebounceWork {
             work.cancel()
             loadingDebounceWork = nil
-            show(message, style: style, duration: duration)
+            show(message, style: style, duration: duration, isWarning: isWarning)
             return
         }
         guard current?.style == .loading else { return }
@@ -174,7 +181,7 @@ public final class ToastManager: ObservableObject {
         let work = DispatchWorkItem { [weak self] in
             guard let self, self.current?.style == .loading else { return }
             self.pendingCompletion = nil
-            self.show(message, style: style, duration: duration)
+            self.show(message, style: style, duration: duration, isWarning: isWarning)
         }
         pendingCompletion = work
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)

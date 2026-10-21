@@ -16,6 +16,18 @@ ToastManager.shared.info("Switched workspace")
 ToastManager.shared.error("Something went wrong")
 ```
 
+## Partial results
+
+`completeLoading(message:duration:isWarning:)` takes `isWarning: true` for an operation that
+finished but only partly well ("Work partially restored"). The toast is still `.success`, so a
+host's exhaustive `switch` over `ToastStyle` keeps compiling and a host that ignores the flag
+draws what it always did. A host that wants a warning glyph and color reads
+`toast.isWarning`:
+
+```swift
+ToastManager.shared.completeLoading(message: "Work partially restored", isWarning: true)
+```
+
 ## Styling
 
 No view ships with this package, on purpose: color, glyph weight, background material,

@@ -145,6 +145,52 @@ final class ToastManagerTests: XCTestCase {
         XCTAssertEqual(manager.current?.message, "Done")
     }
 
+    func testToastsAreNotWarningsByDefault() {
+        let manager = ToastManager(defaults: defaults)
+        manager.success("Saved")
+        XCTAssertEqual(manager.current?.isWarning, false)
+        manager.completeLoading(message: "Done")
+        manager.show("Plain", style: .info)
+        XCTAssertEqual(manager.current?.isWarning, false)
+    }
+
+    func testCompleteLoadingBeforeDebounceCanResolveAsAWarning() {
+        let manager = ToastManager(defaults: defaults)
+
+        manager.loading(message: "Working…")
+        manager.completeLoading(message: "Partly done", isWarning: true)
+
+        XCTAssertEqual(manager.current?.style, .success, "a warning is still a success-category result")
+        XCTAssertEqual(manager.current?.message, "Partly done")
+        XCTAssertEqual(manager.current?.isWarning, true)
+    }
+
+    func testCompleteLoadingAfterLoadingAppearedCanResolveAsAWarning() {
+        let manager = ToastManager(defaults: defaults)
+        let appeared = XCTestExpectation(description: "loading toast appears")
+
+        manager.loading(message: "Working…")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { appeared.fulfill() }
+        wait(for: [appeared], timeout: 1.0)
+
+        manager.completeLoading(message: "Partly done", isWarning: true)
+
+        let transitioned = XCTestExpectation(description: "toast transitions to the warning result")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { transitioned.fulfill() }
+        wait(for: [transitioned], timeout: 2.0)
+
+        XCTAssertEqual(manager.current?.style, .success)
+        XCTAssertEqual(manager.current?.isWarning, true)
+    }
+
+    func testTheNextToastIsNotAWarningJustBecauseTheLastOneWas() {
+        let manager = ToastManager(defaults: defaults)
+        manager.loading(message: "Working…")
+        manager.completeLoading(message: "Partly done", isWarning: true)
+        manager.success("Saved")
+        XCTAssertEqual(manager.current?.isWarning, false)
+    }
+
     func testFailLoadingTransitionsToError() {
         let manager = ToastManager(defaults: defaults)
         let appeared = XCTestExpectation(description: "loading toast appears")
